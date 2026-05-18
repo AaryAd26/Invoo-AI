@@ -1,0 +1,9 @@
+.env 
+node_modules/
+dist/
+dist/
+.next/
+npm-debug.log
+yarn-error.log
+*.log
+.vscode/

@@ -328,6 +328,11 @@ const Dashboard = () => {
           Track Your Invoicing Performance and Business Insights
         </p>
       </div>
+
+      {/* Lodaing and error stage managment */}
+      {loading ?(
+        <div className="p-6"> Loading invoices </div>
+      )}
     </div>
   );
 };

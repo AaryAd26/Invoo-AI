@@ -13,14 +13,19 @@ const PORT = 4000;
 
 // MIDDLEWEAR
 app.use(cors({
-    origin : "http://localhost:5713",
-    crediamls: true
+    origin : "http://localhost:5173",
+    credentials: true
 }));
-app.use(clerkMiddleware())
+
+// ✅ ADD THIS BACK
+app.use(clerkMiddleware({
+    authorizedParties: ['http://localhost:5173']
+}));
+
 app.use(express.json({limit: '20mb'}));
 app.use(express.urlencoded({limit: '20mb', extended: true}))
 
-// DATABE
+// DATABASE
 connectDB();
 
 // ROUTES

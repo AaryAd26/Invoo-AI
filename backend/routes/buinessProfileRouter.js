@@ -1,51 +1,50 @@
-import express from 'express';
-import multer from 'multer';
-import path from 'path'
+import express from "express";
+import multer from "multer";
 
-import {clerkMiddleware}   from '@clerk/express';
-import { createBusinessProfile, getMyBusinessProfile, updateBusinessProfile } from '../controller/buisnessProfileController.js'; // LINE 6: FIXED
-import BusinessProfile from '../models/buisnessProfileModel.js';
+import {
+  createBusinessProfile,
+  updateBusinessProfile,
+  getMyBusinessProfile,
+} from "../controller/buisnessProfileController.js";
 
-const buinessProfileRouter= express.Router();
+const router = express.Router();
 
-buinessProfileRouter.use(clerkMiddleware());
-
-// multer setup
+// STORAGE
 const storage = multer.diskStorage({
-    destination: (req,file,cb) => {
-        cb(null, path.join(process.cwd(), "uploads"));
-    },
-    filename: (req,file, cb) => {
-        const unique= Date.now() + "-" + Math.round(Math.random() * 1e9 ); 
-        const ext = path.extname(file.originalname);
-        cb(null, `buisness-${unique}${ext}`);
-    },
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");
+  },
+
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
 });
 
-const upload = multer({storage });
+const upload = multer({ storage });
 
-// create 
-buinessProfileRouter.post(
-    "/",
-    upload.fields([
-        {name: "logoName", maxCount: 1},
-        { name : "stampName", maxCount: 1 },
-        { name : "signatureNameMeta", maxCount: 1 },
-    ]),
-    createBusinessProfile  // LINE 35: FIXED
-)
-
-// to update the profile 
-buinessProfileRouter.put(
-    "/:id",
-    upload.fields([
-        {name: "logoName", maxCount: 1},
-        { name : "stampName", maxCount: 1 },
-        { name : "signatureNameMeta", maxCount: 1 },
-    ]),
-    updateBusinessProfile
+// CREATE PROFILE
+router.post(
+  "/",
+  upload.fields([
+    { name: "logoName", maxCount: 1 },
+    { name: "stampName", maxCount: 1 },
+    { name: "signatureNameMeta", maxCount: 1 },
+  ]),
+  createBusinessProfile
 );
 
-buinessProfileRouter.get("/me", getMyBusinessProfile);
+// UPDATE PROFILE
+router.put(
+  "/:id",
+  upload.fields([
+    { name: "logoName", maxCount: 1 },
+    { name: "stampName", maxCount: 1 },
+    { name: "signatureNameMeta", maxCount: 1 },
+  ]),
+  updateBusinessProfile
+);
 
-export default buinessProfileRouter;
+// GET MY PROFILE
+router.get("/me", getMyBusinessProfile);
+
+export default router;

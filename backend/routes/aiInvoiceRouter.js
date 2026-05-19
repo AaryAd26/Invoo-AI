@@ -2,24 +2,24 @@ import express from 'express';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
-
 dotenv.config();
 const aiInvoiceRouter = express.Router();
 
-const API_KEY = process.env.GOOGLE_API_KEY;
+// FIX: Changed GOOGLE_API_KEY → GEMINI_API_KEY to match .env
+const API_KEY = process.env.GEMINI_API_KEY;
 if (!API_KEY) {
-    console.warn("GOOGLE_API_KEY is not defined in environment variables");
+    console.warn("GEMINI_API_KEY is not defined in environment variables");
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
-// Model we are trying 
+
+// Models to try in order
 const MODEL_CANDIDATES = [
   "gemini-2.5-flash",
   "gemini-2.0-flash",
   "gemini-2.0",
 ];
 
-// in prompt we can give this details to generate the invoice
 function buildInvoicePrompt(promptText) {
   const invoiceTemplate = {
     invoiceNumber: `INV-${Math.floor(Math.random() * 9000) + 1000}`,
@@ -61,21 +61,9 @@ async function tryGenerateWithModel(modelName, prompt) {
 
   let text =
     (response && typeof response.text === "string" && response.text) ||
-    (response &&
-      response.output &&
-      Array.isArray(response.output) &&
-      response.output[0] &&
-      response.output[0].content &&
-      Array.isArray(response.output[0].content) &&
-      response.output[0].content[0] &&
-      response.output[0].content[0].text) ||
-    // alternate: response?.outputs?.[0]?.text
-    (response &&
-      response.outputs &&
-      Array.isArray(response.outputs) &&
-      response.outputs[0] &&
-      (response.outputs[0].text || response.outputs[0].content)) ||
-    // fallback: JSON-stringify the whole response (so we at least have something)
+    (response?.output?.[0]?.content?.[0]?.text) ||
+    (response?.outputs?.[0]?.text) ||
+    (response?.outputs?.[0]?.content) ||
     null;
 
   if (!text && response && Array.isArray(response.outputs)) {
@@ -105,26 +93,30 @@ async function tryGenerateWithModel(modelName, prompt) {
   if (!text || !String(text).trim()) {
     throw new Error("Empty text returned from model");
   }
+
   return { text: String(text).trim(), modelName };
 }
 
 aiInvoiceRouter.post("/generate", async (req, res) => {
-    try {
+  try {
+    // FIX: Guard now correctly checks GEMINI_API_KEY
     if (!API_KEY) {
-        return res.status(500).json({
-             success: false, 
-             error: "Google API key not configured"
-             });  
-        }
-        const{ prompt } = req.body;
-         if (!prompt || typeof prompt !== "string") {
-            return res.status(400).json({ 
-                success: false,
-                 error: "Prompt text is required" 
-            });
-         }
-         const fullPrompt = buildInvoicePrompt(prompt);
-               let lastErr = null;
+      return res.status(500).json({
+        success: false,
+        error: "Gemini API key not configured. Set GEMINI_API_KEY in your .env file.",
+      });
+    }
+
+    const { prompt } = req.body;
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "Prompt text is required",
+      });
+    }
+
+    const fullPrompt = buildInvoicePrompt(prompt);
+    let lastErr = null;
     let lastText = null;
     let usedModel = null;
 
@@ -149,54 +141,52 @@ aiInvoiceRouter.post("/generate", async (req, res) => {
       return res.status(502).json({
         success: false,
         message: "AI generation failed",
-        detail: errMsg
+        detail: errMsg,
       });
     }
 
-   const text = lastText.trim();
-        const firstBrace = text.indexOf("{");
-        const lastBrace = text.lastIndexOf("}");
-        if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-            console.error("AI response did not contain JSON object:", { usedModel, text });
-            return res.status(502).json({
-                success: false,
-                message: "AI returned malformed response (no JSON found)",
-                raw: text,
-                model: usedModel
-            });
-        }
+    const text = lastText.trim();
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
 
-        const jsonText = text.substring(firstBrace, lastBrace + 1);
-        let data;
-        try {
-            data = JSON.parse(jsonText); 
-        } catch (parseErr) { 
-            console.log("Failed to parse JSON from AI response:", parseErr, {
-                model: usedModel,
-                jsonText
-            });
-            return res.status(502).json({
-                success: false,
-                message: "AI returned malformed JSON",
-                model: usedModel,
-                raw: text,
-            }); 
-        }
-
-        return res.status(200).json({ 
-            success: true,
-            modelUsed: usedModel,
-            data
-        });
-
-    } catch (error) { 
-        console.error("AI Invoice generation error:", error);
-        return res.status(500).json({
-            success: false,
-            error: "An error occurred during AI invoice generation",
-            detail: error.message || String(error)
-        });
+    if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+      console.error("AI response did not contain JSON object:", { usedModel, text });
+      return res.status(502).json({
+        success: false,
+        message: "AI returned malformed response (no JSON found)",
+        raw: text,
+        model: usedModel,
+      });
     }
+
+    const jsonText = text.substring(firstBrace, lastBrace + 1);
+    let data;
+    try {
+      data = JSON.parse(jsonText);
+    } catch (parseErr) {
+      console.error("Failed to parse JSON from AI response:", parseErr, { usedModel, jsonText });
+      return res.status(502).json({
+        success: false,
+        message: "AI returned malformed JSON",
+        model: usedModel,
+        raw: text,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      modelUsed: usedModel,
+      data,
+    });
+
+  } catch (error) {
+    console.error("AI Invoice generation error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "An error occurred during AI invoice generation",
+      detail: error.message || String(error),
+    });
+  }
 });
 
-export default aiInvoiceRouter;
+export default aiInvoiceRouter; 

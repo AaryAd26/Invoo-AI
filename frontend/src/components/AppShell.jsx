@@ -49,14 +49,10 @@ const AppShell = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  
-const logout = async () => {
-    try {
-      await signOut({ redirectUrl: "/" });
-    } catch (error) {
-      console.warn("SignOut Error:", error);
-      navigate("/"); 
-    }
+  const logout = () => {
+    signOut({ redirectUrl: "/" }).catch(() => {
+      navigate("/");
+    });
   }
 
   const toggleSidebar = () => setCollapsed(!collapsed);
@@ -145,12 +141,12 @@ const logout = async () => {
 
   return (
     <div className={appShellStyles.root}>
-      <div className={appShellStyles.layout}>
+      <div className="lg:flex relative"> {/* FIXED: using inline class instead of appShellStyles.layout to add relative */}
 
         {/* Desktop Sidebar */}
         <aside className={`${appShellStyles.sidebar} ${
           collapsed ? appShellStyles.sidebarCollapsed : appShellStyles.sidebarExpanded
-        }`}>
+        } relative z-10`}> {/* FIXED: added relative z-10 */}
           <div className={appShellStyles.sidebarGradient}></div>
           <div className={appShellStyles.sidebarContainer}>
 
@@ -295,7 +291,7 @@ const logout = async () => {
         )}
 
         {/* Main Content Area */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 relative z-0"> {/* FIXED: added relative z-0 */}
           <header className={`${appShellStyles.header} ${
             scrolled ? appShellStyles.headerScrolled : appShellStyles.headerNotScrolled
           }`}>

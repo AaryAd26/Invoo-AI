@@ -1,27 +1,77 @@
 import mongoose from "mongoose";
 
-const BusinessProfileSchema = new mongoose.Schema({
-    owner: {type: String, required: true, index: true},
+const businessProfileSchema = new mongoose.Schema(
+  {
+    owner: {
+      type: String,
+      required: true,
+    },
 
-    buissnesName: {type: String, required: true},
-    email: {type: String, required: false, trim: true, lowercase: true, default: ""},
-    adress: {type: String, required: false, default: ""},
-    phone: {type: String, required: false, default: ""},
-    gst: {type: String, required: false, default: ""},
+    // FIXED HERE
+    businessName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-    // for image
-    logoUrl : {type: String, required: false, default: null},
-    stampUrl : {type: String, required: false, default: null},
-    signatureUrl: {type: String, required: false, default: null},
+    email: {
+      type: String,
+      default: "",
+    },
 
-    signatureOwnerName: {type: String, required: false, default: ""},
-    signatureOwnerTitle: {type: String, required: false, default: ""},
+    address: {
+      type: String,
+      default: "",
+    },
 
-    defaultTaxPercentage: {type: Number, required: false, default: 18},
-}, {
-    timestamps: true
-});
+    phone: {
+      type: String,
+      default: "",
+    },
 
-const BusinessProfile = mongoose.models.BusinessProfile || mongoose.model("BusinessProfile", BusinessProfileSchema); 
+    gst: {
+      type: String,
+      default: "",
+    },
+
+    logoUrl: {
+      type: String,
+      default: null,
+    },
+
+    stampUrl: {
+      type: String,
+      default: null,
+    },
+
+    signatureUrl: {
+      type: String,
+      default: null,
+    },
+
+    signatureOwnerName: {
+      type: String,
+      default: "",
+    },
+
+    signatureOwnerTitle: {
+      type: String,
+      default: "",
+    },
+
+    defaultTaxPercent: {
+      type: Number,
+      default: 18,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const BusinessProfile = mongoose.model(
+  "BusinessProfile",
+  businessProfileSchema
+);
 
 export default BusinessProfile;

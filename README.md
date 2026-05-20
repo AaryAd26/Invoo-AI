@@ -2,7 +2,7 @@
 
 > A full-stack MERN application that lets you generate professional invoices in seconds using AI. Paste any text and watch AI extract client details, line items, and totals automatically.
 
-![Invoo Banner](./frontend/src/assets/logo.png)
+
 
 ---
 

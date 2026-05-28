@@ -7,7 +7,7 @@ import AppShell from './components/AppShell'
 import CreateInvoice from './pages/CreateInvoice'
 import InvoicesPage from './pages/Invoices'
 import InvoicePreview from './pages/InvoicePreview'
-import BuisnessProfile from './pages/BuisnessProfile'  // ✅ ADD THIS
+import BuisnessProfile from './pages/BuisnessProfile'
 import NotFound from './pages/NotFound'
 
 const ClerkProtected = ({ children }) => ( 
@@ -32,11 +32,14 @@ const App = () => {
           <Route index element={<Dashboard />} />
           <Route path='dashboard' element={<Dashboard />} />
           <Route path='invoices' element={<InvoicesPage />} />
+
+          {/* ✅ FIXED: specific routes BEFORE the generic :id route */}
           <Route path='invoices/:id/preview' element={<InvoicePreview />} />
           <Route path='invoices/:id/edit' element={<CreateInvoice />} />
-          <Route path='invoices/:id' element={<div className="p-8"><h1 className="text-3xl font-bold text-gray-900">Invoice Detail</h1></div>} /> 
-          <Route path='create-invoice' element={<CreateInvoice />} />  
-          <Route path='business' element={<BuisnessProfile/>} />  
+          <Route path='invoices/:id' element={<InvoicePreview />} />
+
+          <Route path='create-invoice' element={<CreateInvoice />} />
+          <Route path='business' element={<BuisnessProfile />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -44,4 +47,4 @@ const App = () => {
   );
 }; 
 
-export default App  
+export default App

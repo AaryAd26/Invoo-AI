@@ -17,8 +17,7 @@ function resolveImageUrl(url) {
     try {
       const parsed = new URL(s);
       if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
-        const path =
-          parsed.pathname + (parsed.search || "") + (parsed.hash || "");
+        const path = parsed.pathname + (parsed.search || "") + (parsed.hash || "");
         return `${API_BASE.replace(/\/+$/, "")}${path}`;
       }
       return parsed.href;
@@ -28,7 +27,9 @@ function resolveImageUrl(url) {
 }
 
 function normalizeInvoiceFromServer(inv = {}) {
-  const id = inv.invoiceNumber || inv.id || inv._id || String(inv._id || "");
+  const mongoId = inv._id ?? inv.mongoId ?? null;
+  const displayId = inv.invoiceNumber || inv._id || inv.id || "";
+
   const amount =
     inv.total ??
     inv.amount ??
@@ -41,7 +42,20 @@ function normalizeInvoiceFromServer(inv = {}) {
     inv.signatureDataUrl ?? inv.signatureUrl ?? inv.signature ?? null
   );
 
-  return { ...inv, id, amount, status, logo, stamp, signature };
+  const items = Array.isArray(inv.items) ? inv.items.filter(Boolean) : [];
+
+  return {
+    ...inv,
+    _id: mongoId,
+    id: displayId,
+    mongoId,
+    amount,
+    status,
+    logo,
+    stamp,
+    signature,
+    items,
+  };
 }
 
 function normalizeClient(raw) {
@@ -174,21 +188,25 @@ export default function InvoicesPage() {
   const navigate = useNavigate();
   const { getToken, isSignedIn, isLoaded } = useAuth();
 
-  const obtainToken = useCallback(async () => {
+ 
+ const obtainToken = useCallback(async () => {
     if (typeof getToken !== "function") return null;
-    let attempts = 0;
-    while (!isLoaded && attempts < 30) {
-      await new Promise((r) => setTimeout(r, 100));
-      attempts++;
-    }
     try {
-      let token = await getToken();
-      if (!token) token = await getToken({ forceRefresh: true }).catch(() => null);
+      
+      let token = await getToken().catch(() => null);
+      if (!token) {
+        await new Promise(r => setTimeout(r, 500)); // wait 500ms
+        token = await getToken().catch(() => null);
+      }
+      if (!token) {
+        token = await getToken({ forceRefresh: true }).catch(() => null);
+      }
       return token;
     } catch (err) {
+      console.error("obtainToken error:", err);
       return null;
     }
-  }, [getToken, isLoaded]);
+  }, [getToken]);
 
   const [allInvoices, setAllInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -206,20 +224,28 @@ export default function InvoicesPage() {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
 
-  // ✅ FIX: /api/invoice → /api/invoices
+  
+  // Always send Authorization header — never conditionally.
   const fetchInvoices = useCallback(async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || !isSignedIn) return;
     setLoading(true);
     setError(null);
     try {
       const token = await obtainToken();
-      const headers = { Accept: "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (!token) {
+        setError("Unauthorized. Please sign in.");
+        setLoading(false);
+        return;
+      }
 
       const res = await fetch(`${API_BASE}/api/invoices`, {
         method: "GET",
-        headers,
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
       });
+
       if (res.status === 401) {
         setError("Unauthorized. Please sign in.");
         setAllInvoices([]);
@@ -239,11 +265,15 @@ export default function InvoicesPage() {
     } finally {
       setLoading(false);
     }
-  }, [obtainToken, isLoaded]);
+  }, [obtainToken, isLoaded, isSignedIn]);
 
-  useEffect(() => {
+useEffect(() => {
     if (isLoaded && isSignedIn) {
-      fetchInvoices();
+      
+      const timer = setTimeout(() => {
+        fetchInvoices();
+      }, 300);
+      return () => clearTimeout(timer);
     }
   }, [fetchInvoices, isSignedIn, isLoaded]);
 
@@ -265,8 +295,7 @@ export default function InvoicesPage() {
 
     if (status !== "all")
       arr = arr.filter(
-        (i) =>
-          (i.status || "").toString().toLowerCase() === status.toString().toLowerCase()
+        (i) => (i.status || "").toString().toLowerCase() === status.toString().toLowerCase()
       );
 
     if (from || to) {
@@ -317,13 +346,22 @@ export default function InvoicesPage() {
   }
 
   function openInvoice(inv) {
-    const found = allInvoices.find((x) => x && x.id === inv.id) || inv;
-    navigate(`/app/invoices/${inv.id}/preview`, { state: { invoice: found } });
+    const found = allInvoices.find((x) => x && (x._id === inv._id || x.id === inv.id)) || inv;
+    const urlId = found._id ?? found.mongoId ?? found.id;
+    navigate(`/app/invoices/${urlId}/preview`, {
+      state: {
+        invoice: {
+          ...found,
+          items: Array.isArray(found.items) ? found.items : [],
+        },
+      },
+    });
   }
 
-  // ✅ FIX: /api/invoice/:id → /api/invoices/:id
   async function handleDeleteInvoice(inv) {
-    if (!inv?.id) return;
+    if (!inv) return;
+    const dbId = inv._id ?? inv.mongoId ?? inv.id;
+    if (!dbId) return;
     if (!confirm(`Delete invoice ${inv.id}? This cannot be undone.`)) return;
     try {
       const token = await obtainToken();
@@ -331,7 +369,7 @@ export default function InvoicesPage() {
         alert("Delete requires authentication. Please sign in.");
         return;
       }
-      const res = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(inv.id)}`, {
+      const res = await fetch(`${API_BASE}/api/invoices/${encodeURIComponent(dbId)}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -351,7 +389,6 @@ export default function InvoicesPage() {
     }
   }
 
-  // ✅ FIX: /api/invoice → /api/invoices in handleGenerateFromAI
   async function handleGenerateFromAI(rawText) {
     setAiLoading(true);
     try {
@@ -367,9 +404,7 @@ export default function InvoicesPage() {
 
       const bodyText = await aiRes.text().catch(() => null);
       let bodyJson = null;
-      try {
-        bodyJson = bodyText ? JSON.parse(bodyText) : null;
-      } catch (e) {}
+      try { bodyJson = bodyText ? JSON.parse(bodyText) : null; } catch (e) {}
 
       if (!aiRes.ok) {
         const serverMessage =
@@ -411,7 +446,8 @@ export default function InvoicesPage() {
         const saved = normalizeInvoiceFromServer(createJson?.data || createJson);
         await fetchInvoices();
         setAiOpen(false);
-        navigate(`/app/invoices/${saved.id}/edit`, { state: { invoice: saved } });
+        const urlId = saved._id ?? saved.mongoId ?? saved.id;
+        navigate(`/app/invoices/${urlId}/edit`, { state: { invoice: saved } });
         return;
       } else {
         throw new Error("Creating invoice requires sign-in.");
@@ -651,7 +687,7 @@ export default function InvoicesPage() {
                 const client = normalizeClient(inv.client);
                 const clientInitial = getClientInitial(inv.client);
                 return (
-                  <tr key={inv.id} className={invoicesStyles.tableRow}>
+                  <tr key={inv._id ?? inv.id} className={invoicesStyles.tableRow}>
                     <td className={invoicesStyles.clientCell}>
                       <div className={invoicesStyles.clientContainer}>
                         <div className={invoicesStyles.clientAvatar}>{clientInitial}</div>
@@ -744,4 +780,4 @@ export default function InvoicesPage() {
       />
     </div>
   );
-}
+} 

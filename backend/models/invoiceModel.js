@@ -1,20 +1,20 @@
 import mongoose from 'mongoose';
 
 const ItemSchema = new mongoose.Schema({
-    id:{
+    id: {
         type: String,
         required: true
     },
-    description:{
+    description: {
         type: String,
         required: true
     },
-    qty:{
+    qty: {
         type: Number,
         required: true,
         default: 1
     },
-    unitPrice:{
+    unitPrice: {
         type: Number,
         required: true,
         default: 0,
@@ -22,50 +22,54 @@ const ItemSchema = new mongoose.Schema({
     _id: false
 });
 
-// the invoice schema
 const InvoiceSchema = new mongoose.Schema({
     owner: {
         type: String,
         required: true,
         index: true,
-    }, //it is clerk id 
-// it must be unique for each invoice, we will generate it on the frontend using uuid and check for uniqueness on the backend before saving to db
+    },
     invoiceNumber: {
         type: String,
         required: true,
+        unique: true,
         index: true,
     },
-    issueDate:{
+    issueDate: {
         type: String,
         required: true,
     },
-    dueDate:{
+    dueDate: {
         type: String,
         default: "",
     },
 
-    //Business info
+    // Business info
     fromBusinessName: { type: String, default: "" },
     fromEmail: { type: String, default: "" },
     fromAddress: { type: String, default: "" },
     fromPhone: { type: String, default: "" },
     fromGst: { type: String, default: "" },
 
-        // Client info
+    // Client info
     client: {
-      name: { type: String, default: "" },
-      email: { type: String, default: "" },
-      address: { type: String, default: "" },
-      phone: { type: String, default: "" },
+        name: { type: String, default: "" },
+        email: { type: String, default: "" },
+        address: { type: String, default: "" },
+        phone: { type: String, default: "" },
     },
 
-    Items: { type: [ItemSchema], default: [] },
+    // FIX: was "Items" (capital I) — controller uses "items" (lowercase)
+    // This mismatch meant items were never saved to the database
+    items: { type: [ItemSchema], default: [] },
 
     currency: { type: String, default: "INR" },
-    status: { type: String, enum: ["draft", "unpaid", "paid", "overdue"], default: "draft" },
+    status: {
+        type: String,
+        enum: ["draft", "unpaid", "paid", "overdue"],
+        default: "draft"
+    },
 
-    // FOR ASSESTS 
-        logoDataUrl: { type: String, default: null },
+    logoDataUrl: { type: String, default: null },
     stampDataUrl: { type: String, default: null },
     signatureDataUrl: { type: String, default: null },
 
@@ -82,5 +86,5 @@ const InvoiceSchema = new mongoose.Schema({
     timestamps: true
 });
 
-const Invoice = mongoose.model.Invoice || mongoose.model('Invoice', InvoiceSchema);
+const Invoice = mongoose.models.Invoice || mongoose.model('Invoice', InvoiceSchema);
 export default Invoice;

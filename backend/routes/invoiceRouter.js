@@ -1,4 +1,5 @@
 import express from "express";
+import { getAuth } from "@clerk/express";
 import {
   createInvoice,
   getInvoices,
@@ -6,8 +7,6 @@ import {
   updateInvoice,
   deleteInvoice,
 } from "../controller/invoiceController.js";
-
-import { requireAuth } from "@clerk/express";
 
 const invoiceRouter = express.Router();
 
@@ -17,7 +16,13 @@ AUTH MIDDLEWARE
 ========================================
 */
 
-invoiceRouter.use(requireAuth());
+invoiceRouter.use((req, res, next) => {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+  next();
+});
 
 /*
 ========================================
@@ -29,16 +34,8 @@ invoiceRouter.get("/", async (req, res) => {
   try {
     await getInvoices(req, res);
   } catch (error) {
-    console.error(
-      "GET INVOICES ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to fetch invoices",
-    });
+    console.error("GET INVOICES ERROR:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch invoices" });
   }
 });
 
@@ -52,16 +49,8 @@ invoiceRouter.get("/:id", async (req, res) => {
   try {
     await getInvoiceById(req, res);
   } catch (error) {
-    console.error(
-      "GET SINGLE INVOICE ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to fetch invoice",
-    });
+    console.error("GET SINGLE INVOICE ERROR:", error);
+    return res.status(500).json({ success: false, message: "Failed to fetch invoice" });
   }
 });
 
@@ -75,16 +64,8 @@ invoiceRouter.post("/", async (req, res) => {
   try {
     await createInvoice(req, res);
   } catch (error) {
-    console.error(
-      "CREATE INVOICE ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to create invoice",
-    });
+    console.error("CREATE INVOICE ERROR:", error);
+    return res.status(500).json({ success: false, message: "Failed to create invoice" });
   }
 });
 
@@ -98,16 +79,8 @@ invoiceRouter.put("/:id", async (req, res) => {
   try {
     await updateInvoice(req, res);
   } catch (error) {
-    console.error(
-      "UPDATE INVOICE ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to update invoice",
-    });
+    console.error("UPDATE INVOICE ERROR:", error);
+    return res.status(500).json({ success: false, message: "Failed to update invoice" });
   }
 });
 
@@ -121,16 +94,8 @@ invoiceRouter.delete("/:id", async (req, res) => {
   try {
     await deleteInvoice(req, res);
   } catch (error) {
-    console.error(
-      "DELETE INVOICE ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to delete invoice",
-    });
+    console.error("DELETE INVOICE ERROR:", error);
+    return res.status(500).json({ success: false, message: "Failed to delete invoice" });
   }
 });
 
